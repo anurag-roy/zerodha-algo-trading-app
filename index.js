@@ -3,14 +3,17 @@ const KiteTicker = require("kiteconnect").KiteTicker;
 const express = require("express");
 const bodyParser = require("body-parser");
 const fs = require("fs");
+require ("dotenv").config();
 
-// const app = express();
+ const app = express();
 
-// app.listen(8000, () => {
-//   console.log("Server started on port 8000");
-// });
+ app.use("/login/")
 
-const apiKey = "2rtrb58mdwkhu7s7";
+app.listen(8000, () => {
+  console.log("Server started on port 8000");
+});
+
+const apiKey = process.env.API_KEY;
 //const accessToken = "jx3MYBNSUhfUba1WYqMUmgkqdCBLBWPk";
 
 const kc = new KiteConnect({
