@@ -1,11 +1,11 @@
 const KiteConnect = require("kiteconnect").KiteConnect;
 const KiteTicker = require("kiteconnect").KiteTicker;
 const express = require("express");
-const bodyParser = require("body-parser");
 const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
+app.use(express.json());
 
 const apiKey = process.env.API_KEY;
 const apiSecret = process.env.API_SECRET;
@@ -41,42 +41,28 @@ app.use("/startLive", (req, res) => {
   res.send("Started Live. Check console.");
 });
 
-app.post("/startTrading", (req, res) => {
+app.post("/startTrading", ({ body }, res) => {
   useStrategy(
-    { exchange: "MCX", tradingsymbol: "GOLDPETAL20JULFUT" },
-    { exchange: "MCX", tradingsymbol: "GOLDPETAL20JUNFUT" },
-    1,
-    0,
-    0
-  ).then((result) => {
-    return result;
-  });
+    body.stockA,
+    body.stockB,
+    body.quantity,
+    body.ltpDifference,
+    body.exitDifference
+  );
+  res.send("Trade started. Check console for further details");
 });
 
 app.listen(8000, () => {
   console.log("Server started on port 8000");
 });
 
-// kc.getInstruments()
-//   .then((res) => {
-//     fs.writeFileSync("instruments.json", JSON.stringify(res));
-//     console.log("Fetched all the instruments");
-//   })
-//   .catch((err) => {
-//     console.error(err);
-//   });
-
-// stockA : {
-//   exchange: "NSE",
-//   tradingsymbol: "INFY"
-// }
-
 const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
   let aLTP, bLTP, aInstrumentToken, bInstrumentToken;
-  let stockA,
+  let stockA = {},
     stockB = {};
   let enteredMarket = false,
     exitedMarket = false;
+  let caseNumber = undefined;
 
   // Order function
   const order = (stock, transactionType, ltp) => {
@@ -109,7 +95,7 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
       exitedMarket = true;
       order(stock1, "BUY", aLTP);
       order(stock2, "SELL", bLTP);
-      console.log("Completed");
+      console.log("Exited Market");
     }
   };
 
@@ -127,8 +113,14 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
           aLTP - bLTP
         }`
       );
-      if (checkExitCondition(aLTP, bLTP)) {
-        exitMarket(stockA, stockB);
+      if (caseNumber === 1) {
+        if (checkExitCondition(aLTP, bLTP)) {
+          exitMarket(stockA, stockB);
+        }
+      } else if (caseNumber === 2) {
+        if (checkExitCondition(bLTP, aLTP)) {
+          exitMarket(stockB, stockA);
+        }
       }
     });
   };
@@ -166,7 +158,11 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
       const condition = checkEntryCondition(aLTP, bLTP);
 
       if (condition === 1) {
+        caseNumber = 1;
         enterMarket(stockA, stockB);
+      } else if (condition === 2) {
+        caseNumber = 2;
+        enterMarket(stockB, stockA);
       }
     });
   };
