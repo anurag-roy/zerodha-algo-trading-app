@@ -38,14 +38,17 @@ app.use("/login", (req, res) => {
 });
 
 app.use("/startLive", (req, res) => {
+  res.send("Started Live. Check console.");
+});
+
+app.post("/startTrading", (req, res) => {
   useStrategy(
-    { exchange: "NFO", tradingsymbol: "ACC20JULFUT" },
-    { exchange: "NFO", tradingsymbol: "ACC20JUNFUT" },
-    0,
-    0,
+    { exchange: "MCX", tradingsymbol: "GOLDPETAL20JULFUT" },
+    { exchange: "MCX", tradingsymbol: "GOLDPETAL20JUNFUT" },
+    1,
+    2.5,
     0
   );
-  res.send("Started Live. Check console.");
 });
 
 app.listen(8000, () => {
@@ -70,17 +73,23 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
   let aLTP, bLTP, aInstrumentToken, bInstrumentToken;
   let stockA,
     stockB = {};
+  let enteredMarket = false,
+    exitedMarket = false;
 
   // Order function
-  const order = (stock, transactionType) => {
-    kc.placeOrder("regular", {
-      exchange: stock.exchange,
-      tradingsymbol: stock.tradingsymbol,
-      transaction_type: transactionType,
-      quantity,
-      product: "CNC",
-      order_type: "NRML",
-    });
+  const order = (stock, transactionType, ltp) => {
+    // kc.placeOrder("regular", {
+    //   exchange: stock.exchange,
+    //   tradingsymbol: stock.tradingsymbol,
+    //   transaction_type: transactionType,
+    //   quantity,
+    //   product: "NRML",
+    //   order_type: "LIMIT",
+    //   price: ltp,
+    // }).catch((error) => {
+    //   console.log("Error while placing order", error);
+    // });
+    console.log(`Order placed for ${stock.exchange}:${stock.tradingsymbol} of transaction ${transactionType}`);
   };
 
   // Checks Market Exit Condition
@@ -92,20 +101,26 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
 
   //Market Exit Order
   const exitMarket = (stock1, stock2) => {
-    order(stock1, "BUY");
-    order(stock2, "SELL");
+    if (exitedMarket === false) {
+      exitedMarket = true;
+      order(stock1, "BUY", aLTP);
+      order(stock2, "SELL", bLTP);
+      console.log("Completed");
+    }
+
     ticker.disconnect();
   };
 
   // Market Exit Logic
   const lookForExit = (ticks) => {
     ticks.forEach((t) => {
+      console.log(t);
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
       }
-
+      console.log(`(Looking for Exit) LTP Difference: ${aLTP - bLTP}`);
       if (checkExitCondition(aLTP, bLTP)) {
         exitMarket(stockA, stockB);
       }
@@ -116,27 +131,30 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
   const checkEntryCondition = (ltp1, ltp2) => {
     if (ltp1 > ltp2 && ltp1 - ltp2 >= 1.01 * ltpDiff) {
       return 1;
-    } else if (ltpDiff > 1.01 * average) {
-      return 3;
     } else return 0;
   };
 
   // Market Entry Order
   const enterMarket = (stock1, stock2) => {
     // TODO: Enter this into the ledger
-    order(stock1, "SELL");
-    order(stock2, "BUY");
-    onTick = lookForExit;
+    if (enteredMarket === false) {
+      enteredMarket = true;
+      console.log("Entered market");
+      order(stock1, "SELL", aLTP);
+      order(stock2, "BUY", bLTP);
+    }
   };
 
   // Market Entry Logic which is run on each tick
   const lookForEntry = (ticks) => {
     ticks.forEach((t) => {
+      console.log(t);
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
       }
+      console.log(`(Looking for entry) LTP Difference: ${aLTP - bLTP}`);
       const condition = checkEntryCondition(aLTP, bLTP);
 
       if (condition === 1) {
@@ -145,7 +163,7 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
     });
   };
 
-  let onTick = lookForEntry;
+  // let onTick = lookForEntry;
 
   kc.getLTP([
     `${stockUno.exchange}:${stockUno.tradingsymbol}`,
@@ -167,8 +185,8 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
         bInstrumentToken =
           result[`${stockDos.exchange}:${stockDos.tradingsymbol}`]
             .instrument_token;
-        stockA = { ...StockUno };
-        stockB = { ...StockDos };
+        stockA = { ...stockUno };
+        stockB = { ...stockDos };
       } else {
         aLTP = dosLTP;
         bLTP = unoLTP;
@@ -178,16 +196,15 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
         bInstrumentToken =
           result[`${stockUno.exchange}:${stockUno.tradingsymbol}`]
             .instrument_token;
-        stockA = { ...StockDos };
-        stockB = { ...StockUno };
+        stockA = { ...stockDos };
+        stockB = { ...stockUno };
       }
     })
     .then(() => {
-      const ticker = new KiteTicker({
+      var ticker = new KiteTicker({
         api_key: apiKey,
         access_token: accessToken,
       });
-
       ticker.connect();
 
       ticker.on("connect", () => {
@@ -198,7 +215,13 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
         ticker.setMode(ticker.modeQuote, items);
       });
 
-      ticker.on("ticks", onTick);
+      ticker.on("ticks", (tick) => {
+        if (enteredMarket === false) {
+          lookForEntry(tick);
+        } else if (exitedMarket === false) {
+          lookForExit(tick);
+        }
+      });
     })
     .catch((error) => {
       console.log("Error fetching LTP for the stocks: ", error);
