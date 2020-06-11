@@ -90,11 +90,11 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
   };
 
   //Market Exit Order
-  const exitMarket = (stock1, stock2) => {
+  const exitMarket = (stock1, stock2, ltp1, ltp2) => {
     if (exitedMarket === false) {
       exitedMarket = true;
-      order(stock1, "BUY", aLTP);
-      order(stock2, "SELL", bLTP);
+      order(stock1, "BUY", ltp1);
+      order(stock2, "SELL", ltp2);
       console.log("Exited Market");
     }
   };
@@ -108,18 +108,18 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
       }
+      console.log(`${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`);
+      console.log(`${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}`);
       console.log(
-        `[Looking for Exit (Given: ${exitDiff})] Current LTP Difference: ${
-          aLTP - bLTP
-        }`
+        `[Looking for Exit (Given: ${exitDiff})] LTP Difference: ${aLTP - bLTP}`
       );
       if (caseNumber === 1) {
         if (checkExitCondition(aLTP, bLTP)) {
-          exitMarket(stockA, stockB);
+          exitMarket(stockA, stockB, aLTP, bLTP);
         }
       } else if (caseNumber === 2) {
         if (checkExitCondition(bLTP, aLTP)) {
-          exitMarket(stockB, stockA);
+          exitMarket(stockB, stockA, bLTP, aLTP);
         }
       }
     });
@@ -135,34 +135,38 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
   };
 
   // Market Entry Order
-  const enterMarket = (stock1, stock2) => {
+  const enterMarket = (stock1, stock2, ltp1, ltp2) => {
     // TODO: Enter this into the ledger
     if (enteredMarket === false) {
       enteredMarket = true;
       console.log("Entered market");
-      order(stock1, "SELL", aLTP);
-      order(stock2, "BUY", bLTP);
+      order(stock1, "SELL", ltp1);
+      order(stock2, "BUY", ltp2);
     }
   };
 
   // Market Entry Logic which is run on each tick
   const lookForEntry = (ticks) => {
     ticks.forEach((t) => {
-      console.log(t);
+      //console.log(t);
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
       }
-      console.log(`(Looking for entry) LTP Difference: ${aLTP - bLTP}`);
+      console.log(`${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`);
+      console.log(`${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}`);
+      console.log(
+        `[Looking for Entry (Given: ${ltpDiff})] LTP Difference: ${aLTP - bLTP}`
+      );
       const condition = checkEntryCondition(aLTP, bLTP);
 
       if (condition === 1) {
         caseNumber = 1;
-        enterMarket(stockA, stockB);
+        enterMarket(stockA, stockB, aLTP, bLTP);
       } else if (condition === 2) {
         caseNumber = 2;
-        enterMarket(stockB, stockA);
+        enterMarket(stockB, stockA, bLTP, aLTP);
       }
     });
   };
