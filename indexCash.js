@@ -47,7 +47,8 @@ app.post("/startTrading", ({ body }, res) => {
     body.stockB,
     body.quantity,
     body.ltpDifference,
-    body.exitDifference
+    body.exitDifference,
+    body.excess
   );
   res.send("Trade started. Check console for further details");
 });
@@ -56,7 +57,14 @@ app.listen(8000, () => {
   console.log("Server started on port 8000");
 });
 
-const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
+const useStrategy = (
+  stockUno,
+  stockDos,
+  quantity,
+  ltpDiff,
+  exitDiff,
+  excess
+) => {
   let aLTP, bLTP, aInstrumentToken, bInstrumentToken;
   let stockA = {},
     stockB = {};
@@ -71,9 +79,9 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
       tradingsymbol: stock.tradingsymbol,
       transaction_type: transactionType,
       quantity,
-      product: "NRML",
-      order_type: "LIMIT",
-      price: ltp,
+      product: "MIS",
+      order_type: "MARKET",
+      // price: ltp,
     }).catch((error) => {
       console.log("Error while placing order", error);
     });
@@ -83,18 +91,25 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
   };
 
   // Checks Market Exit Condition
-  const checkExitCondition = (ltp1, ltp2) => {
-    if (ltp1 - ltp2 <= 1.01 * exitDiff) {
-      return true;
-    } else return false;
+  const checkExitCondition = (ltp1, ltp2, cond) => {
+    if (cond === 1) {
+      if (ltp1 - (ltp2 - excess) <= exitDiff) {
+        return true;
+      } else return false;
+    } else if (cond === 2) {
+      if (ltp2 + excess - ltp1 <= exitDiff) {
+        return true;
+      } else return false;
+    }
+
+    return false;
   };
 
   //Market Exit Order
-  const exitMarket = (stock1, stock2, ltp1, ltp2) => {
+  const exitMarket = (stock, ltp, transactionType) => {
     if (exitedMarket === false) {
       exitedMarket = true;
-      order(stock1, "BUY", ltp1);
-      order(stock2, "SELL", ltp2);
+      order(stock, transactionType, ltp);
       console.log("Exited Market");
     }
   };
@@ -102,7 +117,7 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
   // Market Exit Logic
   const lookForExit = (ticks) => {
     ticks.forEach((t) => {
-      console.log(t);
+      // console.log(t);
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
       } else if (t.instrument_token === bInstrumentToken) {
@@ -114,12 +129,12 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
         `[Looking for Exit (Given: ${exitDiff})] LTP Difference: ${aLTP - bLTP}`
       );
       if (caseNumber === 1) {
-        if (checkExitCondition(aLTP, bLTP)) {
-          exitMarket(stockA, stockB, aLTP, bLTP);
+        if (checkExitCondition(aLTP, bLTP, 1)) {
+          exitMarket(stockB, bLTP, "BUY");
         }
       } else if (caseNumber === 2) {
-        if (checkExitCondition(bLTP, aLTP)) {
-          exitMarket(stockB, stockA, bLTP, aLTP);
+        if (checkExitCondition(aLTP, bLTP, 2)) {
+          exitMarket(stockB, bLTP, "BUY");
         }
       }
     });
@@ -127,21 +142,20 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
 
   // Checks Market Entry Condition
   const checkEntryCondition = (ltp1, ltp2) => {
-    if (ltp1 > ltp2 && ltp1 - ltp2 >= 1.01 * ltpDiff) {
+    if (ltp1 > ltp2 && ltp1 - (ltp2 + excess) >= ltpDiff) {
       return 1;
-    } else if (ltp2 > ltp1 && ltp2 - ltp1 >= 1.01 * ltpDiff) {
+    } else if (ltp2 > ltp1 && ltp2 - excess - ltp1 >= ltpDiff) {
       return 2;
     } else return 0;
   };
 
   // Market Entry Order
-  const enterMarket = (stock1, stock2, ltp1, ltp2) => {
+  const enterMarket = (stock, ltp, transactionType) => {
     // TODO: Enter this into the ledger
     if (enteredMarket === false) {
       enteredMarket = true;
       console.log("Entered market");
-      order(stock1, "SELL", ltp1);
-      order(stock2, "BUY", ltp2);
+      order(stock, transactionType, ltp);
     }
   };
 
@@ -163,10 +177,10 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
 
       if (condition === 1) {
         caseNumber = 1;
-        enterMarket(stockA, stockB, aLTP, bLTP);
+        enterMarket(stockB, bLTP, "SELL");
       } else if (condition === 2) {
         caseNumber = 2;
-        enterMarket(stockB, stockA, bLTP, aLTP);
+        enterMarket(stockB, bLTP, "SELL");
       }
     });
   };
