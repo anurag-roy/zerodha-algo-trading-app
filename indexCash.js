@@ -48,23 +48,18 @@ app.post("/startTrading", ({ body }, res) => {
     body.quantity,
     body.ltpDifference,
     body.exitDifference,
-    body.excess
+    body.excess,
   );
   res.send("Trade started. Check console for further details");
 });
+
+app.post("/unexecuted", ({ body }, res) => {});
 
 app.listen(8000, () => {
   console.log("Server started on port 8000");
 });
 
-const useStrategy = (
-  stockUno,
-  stockDos,
-  quantity,
-  ltpDiff,
-  exitDiff,
-  excess
-) => {
+const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff, excess) => {
   let aLTP, bLTP, aInstrumentToken, bInstrumentToken;
   let stockA = {},
     stockB = {};
@@ -86,7 +81,7 @@ const useStrategy = (
       console.log("Error while placing order", error);
     });
     console.log(
-      `Order placed for ${stock.exchange}:${stock.tradingsymbol} of transaction ${transactionType} quantity ${quantity}`
+      `Order placed for ${stock.exchange}:${stock.tradingsymbol} of transaction ${transactionType} quantity ${quantity}`,
     );
   };
 
@@ -125,9 +120,7 @@ const useStrategy = (
       }
       console.log(`${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`);
       console.log(`${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}`);
-      console.log(
-        `[Looking for Exit (Given: ${exitDiff})] LTP Difference: ${aLTP - bLTP}`
-      );
+      console.log(`[Looking for Exit (Given: ${exitDiff})] LTP Difference: ${aLTP - bLTP}`);
       if (caseNumber === 1) {
         if (checkExitCondition(aLTP, bLTP, 1)) {
           exitMarket(stockB, bLTP, "BUY");
@@ -170,9 +163,7 @@ const useStrategy = (
       }
       console.log(`${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`);
       console.log(`${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}`);
-      console.log(
-        `[Looking for Entry (Given: ${ltpDiff})] LTP Difference: ${aLTP - bLTP}`
-      );
+      console.log(`[Looking for Entry (Given: ${ltpDiff})] LTP Difference: ${aLTP - bLTP}`);
       const condition = checkEntryCondition(aLTP, bLTP);
 
       if (condition === 1) {
@@ -191,16 +182,10 @@ const useStrategy = (
   ])
     .then((result) => {
       console.log("Got LTPs", result);
-      aLTP =
-        result[`${stockUno.exchange}:${stockUno.tradingsymbol}`].last_price;
-      bLTP =
-        result[`${stockDos.exchange}:${stockDos.tradingsymbol}`].last_price;
-      aInstrumentToken =
-        result[`${stockUno.exchange}:${stockUno.tradingsymbol}`]
-          .instrument_token;
-      bInstrumentToken =
-        result[`${stockDos.exchange}:${stockDos.tradingsymbol}`]
-          .instrument_token;
+      aLTP = result[`${stockUno.exchange}:${stockUno.tradingsymbol}`].last_price;
+      bLTP = result[`${stockDos.exchange}:${stockDos.tradingsymbol}`].last_price;
+      aInstrumentToken = result[`${stockUno.exchange}:${stockUno.tradingsymbol}`].instrument_token;
+      bInstrumentToken = result[`${stockDos.exchange}:${stockDos.tradingsymbol}`].instrument_token;
       stockA = { ...stockUno };
       stockB = { ...stockDos };
     })
