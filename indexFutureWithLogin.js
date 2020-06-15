@@ -8,21 +8,41 @@ const app = express();
 app.use(express.json());
 
 const apiKey = process.env.API_KEY;
-const accessToken = "ZGaVZqFgY1vetA1jHZCuZL8J5ZB3DpLH";
+const apiSecret = process.env.API_SECRET;
+let accessToken;
 
 const kc = new KiteConnect({
   api_key: apiKey,
 });
-kc.setAccessToken(accessToken);
 
-console.log("All set!");
+console.log(`Please click on this URL to get logged in: ${kc.getLoginURL()}`);
+
+app.use("/login", (req, res) => {
+  const requestToken = req.query.request_token;
+  console.log("Generating session. Please wait.");
+  kc.generateSession(requestToken, apiSecret)
+    .then((result) => {
+      console.log("Obtained the access token.");
+      accessToken = result.access_token;
+    })
+    .then(() => {
+      kc.setAccessToken(accessToken);
+      console.log("Access Token set. ", accessToken);
+    })
+    .then(() => {
+      res.send("Login flow successful!");
+    })
+    .catch((error) => {
+      console.log("Error during login flow: ", error);
+    });
+});
 
 app.use("/startLive", (req, res) => {
   res.send("Started Live. Check console.");
 });
 
 app.post("/startTrading", ({ body }, res) => {
-  useStrategy(body.stockA, body.stockB, body.quantity, body.entryDifference, body.exitDifference);
+  useStrategy(body.stockA, body.stockB, body.quantity, body.ltpDifference, body.exitDifference);
   res.send("Trade started. Check console for further details");
 });
 
@@ -30,7 +50,7 @@ app.listen(8000, () => {
   console.log("Server started on port 8000");
 });
 
-const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
+const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff) => {
   let aLTP, bLTP, aInstrumentToken, bInstrumentToken;
   let stockA = {},
     stockB = {};
@@ -111,9 +131,9 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
 
   // Checks Market Entry Condition
   const checkEntryCondition = (aLTP, bLTP, c, d, f, e) => {
-    if (aLTP >= bLTP && c - d >= entryDiff) {
+    if (aLTP > bLTP && c - d >= ltpDiff) {
       return 1;
-    } else if (bLTP > aLTP && f - e >= entryDiff) {
+    } else if (bLTP > aLTP && f - e >= ltpDiff) {
       return 2;
     } else return 0;
   };
@@ -151,11 +171,6 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
       console.log(
         `${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}, Buyers Bid: ${buyersBidForB}, Sellers Bid: ${sellersBidForB}`,
       );
-      if (aLTP >= bLTP) {
-        console.log(`Given: ${entryDiff}, Difference: ${buyersBidForA - sellersBidForB}`);
-      } else if (bLTP > aLTP) {
-        console.log(`Given: ${entryDiff}, Difference: ${buyersBidForB - sellersBidForA}`);
-      }
 
       const condition = checkEntryCondition(
         aLTP,
