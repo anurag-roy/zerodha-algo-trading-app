@@ -129,9 +129,12 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
       } else if (t.instrument_token === bInstrumentToken) {
-        const { buy, sell } = t.depth;
-        buyersBidForB = buy[0].price;
-        sellersBidForB = sell[0].price;
+        if (t.depth.buy) {
+          buyersBidForB = t.depth.buy[0].price;
+        }
+        if (t.depth.sell) {
+          sellersBidForB = t.depth.sell[0].price;
+        }
       }
       console.log("Looking for entry...");
       console.log(

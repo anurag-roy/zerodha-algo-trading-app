@@ -79,14 +79,20 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
     ticks.forEach((t) => {
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
-        const { buy, sell } = t.depth;
-        buyersBidForA = buy[0].price;
-        sellersBidForA = sell[0].price;
+        if (t.depth.buy) {
+          buyersBidForA = t.depth.buy[0].price;
+        }
+        if (t.depth.sell) {
+          sellersBidForA = t.depth.sell[0].price;
+        }
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
-        const { buy, sell } = t.depth;
-        buyersBidForB = buy[0].price;
-        sellersBidForB = sell[0].price;
+        if (t.depth.buy) {
+          buyersBidForB = t.depth.buy[0].price;
+        }
+        if (t.depth.sell) {
+          sellersBidForB = t.depth.sell[0].price;
+        }
       }
 
       if (caseNumber === 1) {
