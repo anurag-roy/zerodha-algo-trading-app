@@ -8,34 +8,14 @@ const app = express();
 app.use(express.json());
 
 const apiKey = process.env.API_KEY;
-const apiSecret = process.env.API_SECRET;
-let accessToken;
+const accessToken = "";
 
 const kc = new KiteConnect({
   api_key: apiKey,
 });
+kc.setAccessToken(accessToken);
 
-console.log(`Please click on this URL to get logged in: ${kc.getLoginURL()}`);
-
-app.use("/login", (req, res) => {
-  const requestToken = req.query.request_token;
-  console.log("Generating session. Please wait.");
-  kc.generateSession(requestToken, apiSecret)
-    .then((result) => {
-      console.log("Obtained the access token.");
-      accessToken = result.access_token;
-    })
-    .then(() => {
-      kc.setAccessToken(accessToken);
-      console.log("Access Token set. ", accessToken);
-    })
-    .then(() => {
-      res.send("Login flow successful!");
-    })
-    .catch((error) => {
-      console.log("Error during login flow: ", error);
-    });
-});
+console.log("All set!");
 
 app.use("/startLive", (req, res) => {
   res.send("Started Live. Check console.");
@@ -46,109 +26,99 @@ app.post("/startTrading", ({ body }, res) => {
     body.stockA,
     body.stockB,
     body.quantity,
-    body.ltpDifference,
+    body.entryDifference,
     body.exitDifference,
-    body.excess,
   );
   res.send("Trade started. Check console for further details");
 });
 
-app.post("/unexecuted", ({ body }, res) => {});
+app.post("/unexecuted", ({ body }, res) => { });
 
-app.listen(8000, () => {
-  console.log("Server started on port 8000");
+app.listen(8001, () => {
+  console.log("Server started on port 8001");
 });
 
-const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff, excess) => {
+const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
   let aLTP, bLTP, aInstrumentToken, bInstrumentToken;
   let stockA = {},
     stockB = {};
+  let buyersBidForA, sellersBidForA, buyersBidForB, sellersBidForB;
   let enteredMarket = false,
     exitedMarket = false;
-  let caseNumber = undefined;
 
   // Order function
-  const order = (stock, transactionType, ltp) => {
-    kc.placeOrder("regular", {
-      exchange: stock.exchange,
-      tradingsymbol: stock.tradingsymbol,
-      transaction_type: transactionType,
-      quantity,
-      product: "MIS",
-      order_type: "MARKET",
-      // price: ltp,
-    }).catch((error) => {
-      console.log("Error while placing order", error);
-    });
+  const order = (stock, transactionType, price) => {
+    // kc.placeOrder("regular", {
+    //   exchange: stock.exchange,
+    //   tradingsymbol: stock.tradingsymbol,
+    //   transaction_type: transactionType,
+    //   quantity,
+    //   product: "MIS",
+    //   order_type: "MARKET",
+    //   price: ltp,
+    // }).catch((error) => {
+    //   console.log("Error while placing order", error);
+    // });
     console.log(
-      `Order placed for ${stock.exchange}:${stock.tradingsymbol} of transaction ${transactionType} quantity ${quantity}`,
+      `Order placed for ${stock.exchange}:${stock.tradingsymbol}, Transaction: ${transactionType}, price: ${price}, quantity: ${quantity}`,
     );
   };
 
   // Checks Market Exit Condition
-  const checkExitCondition = (ltp1, ltp2, cond) => {
-    if (cond === 1) {
-      if (ltp1 - (ltp2 - excess) <= exitDiff) {
-        return true;
-      } else return false;
-    } else if (cond === 2) {
-      if (ltp2 + excess - ltp1 <= exitDiff) {
-        return true;
-      } else return false;
-    }
-
-    return false;
+  const checkExitCondition = (price1, price2) => {
+    if (price1 - price2 <= exitDiff) {
+      return true;
+    } else return false;
   };
 
   //Market Exit Order
-  const exitMarket = (stock, ltp, transactionType) => {
+  const exitMarket = (stock, price, transactionType) => {
     if (exitedMarket === false) {
       exitedMarket = true;
-      order(stock, transactionType, ltp);
+      order(stock, transactionType, price);
       console.log("Exited Market");
     }
   };
 
   // Market Exit Logic
   const lookForExit = (ticks) => {
-    ticks.forEach((t) => {
-      // console.log(t);
+    ticks.forEach(t => {
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
       } else if (t.instrument_token === bInstrumentToken) {
-        bLTP = t.last_price;
+        const { buy, sell } = t.depth;
+        buyersBidForB = buy[0].price;
+        sellersBidForB = sell[0].price;
       }
-      console.log(`${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`);
-      console.log(`${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}`);
-      console.log(`[Looking for Exit (Given: ${exitDiff})] LTP Difference: ${aLTP - bLTP}`);
-      if (caseNumber === 1) {
-        if (checkExitCondition(aLTP, bLTP, 1)) {
-          exitMarket(stockB, bLTP, "BUY");
-        }
-      } else if (caseNumber === 2) {
-        if (checkExitCondition(aLTP, bLTP, 2)) {
-          exitMarket(stockB, bLTP, "BUY");
-        }
+      console.log("Looking for Exit...");
+      console.log(
+        `${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`,
+      );
+      console.log(
+        `${stockB.exchange}:${stockB.tradingsymbol} Sellers Bid: ${sellersBidForB}`,
+      );
+      console.log(`[Looking for Entry (Given: ${exitDiff})] LTP Difference: ${sellersBidForB - aLTP}`);
+
+      if (checkExitCondition(sellersBidForB, aLTP)) {
+        exitMarket(stockB, sellersBidForB, "BUY");
       }
-    });
+    })
   };
 
   // Checks Market Entry Condition
-  const checkEntryCondition = (ltp1, ltp2) => {
-    if (ltp1 > ltp2 && ltp1 - (ltp2 + excess) >= ltpDiff) {
-      return 1;
-    } else if (ltp2 > ltp1 && ltp2 - excess - ltp1 >= ltpDiff) {
-      return 2;
-    } else return 0;
+  const checkEntryCondition = (price1, price2) => {
+    if (price1 - price2 >= entryDiff) {
+      return true;
+    } else return false;
   };
 
   // Market Entry Order
-  const enterMarket = (stock, ltp, transactionType) => {
+  const enterMarket = (stock, price, transactionType) => {
     // TODO: Enter this into the ledger
     if (enteredMarket === false) {
       enteredMarket = true;
       console.log("Entered market");
-      order(stock, transactionType, ltp);
+      order(stock, transactionType, price);
     }
   };
 
@@ -159,19 +129,21 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff, excess) =>
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
       } else if (t.instrument_token === bInstrumentToken) {
-        bLTP = t.last_price;
+        const { buy, sell } = t.depth;
+        buyersBidForB = buy[0].price;
+        sellersBidForB = sell[0].price;
       }
-      console.log(`${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`);
-      console.log(`${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}`);
-      console.log(`[Looking for Entry (Given: ${ltpDiff})] LTP Difference: ${aLTP - bLTP}`);
-      const condition = checkEntryCondition(aLTP, bLTP);
+      console.log("Looking for entry...");
+      console.log(
+        `${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`,
+      );
+      console.log(
+        `${stockB.exchange}:${stockB.tradingsymbol} Buyers Bid: ${buyersBidForB}`,
+      );
+      console.log(`[Looking for Entry (Given: ${ltpDiff})] LTP Difference: ${buyersBidForB - aLTP}`);
 
-      if (condition === 1) {
-        caseNumber = 1;
-        enterMarket(stockB, bLTP, "SELL");
-      } else if (condition === 2) {
-        caseNumber = 2;
-        enterMarket(stockB, bLTP, "SELL");
+      if (checkEntryCondition(buyersBidForB, aLTP)) {
+        enterMarket(stockB, buyersBidForB, "SELL");
       }
     });
   };
@@ -201,7 +173,7 @@ const useStrategy = (stockUno, stockDos, quantity, ltpDiff, exitDiff, excess) =>
         items.push(aInstrumentToken);
         items.push(bInstrumentToken);
         ticker.subscribe(items);
-        ticker.setMode(ticker.modeQuote, items);
+        ticker.setMode(ticker.modeFull, items);
       });
 
       ticker.on("ticks", (tick) => {
