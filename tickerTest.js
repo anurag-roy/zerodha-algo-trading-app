@@ -1,8 +1,9 @@
+require("dotenv").config()
 const KiteTicker = require("kiteconnect").KiteTicker;
 
 const ticker = new KiteTicker({
-  api_key: "2rtrb58mdwkhu7s7",
-  access_token: "ZGaVZqFgY1vetA1jHZCuZL8J5ZB3DpLH",
+  api_key: process.env.API_KEY,
+  access_token: process.env.ACCESS_TOKEN,
 });
 
 ticker.connect();

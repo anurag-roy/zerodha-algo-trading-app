@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 const apiKey = process.env.API_KEY;
-const accessToken = "";
+const accessToken = process.env.ACCESS_TOKEN;
 
 const kc = new KiteConnect({
   api_key: apiKey,
@@ -22,17 +22,14 @@ app.use("/startLive", (req, res) => {
 });
 
 app.post("/startTrading", ({ body }, res) => {
-  useStrategy(
-    body.stockA,
-    body.stockB,
-    body.quantity,
-    body.entryDifference,
-    body.exitDifference,
-  );
+  useStrategy(body.stockA, body.stockB, body.quantity, body.entryDifference, body.exitDifference);
   res.send("Trade started. Check console for further details");
 });
 
-app.post("/unexecuted", ({ body }, res) => { });
+app.post("/unexecuted", ({ body }, res) => {
+  unexecutedLogic(body.stockToBuy, body.stockToSell, body.exitDiff, body.quantity);
+  res.send("Unexecuted started. Check console for further details");
+});
 
 app.listen(8001, () => {
   console.log("Server started on port 8001");
@@ -82,7 +79,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
 
   // Market Exit Logic
   const lookForExit = (ticks) => {
-    ticks.forEach(t => {
+    ticks.forEach((t) => {
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
       } else if (t.instrument_token === bInstrumentToken) {
@@ -91,18 +88,16 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         sellersBidForB = sell[0].price;
       }
       console.log("Looking for Exit...");
+      console.log(`${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`);
+      console.log(`${stockB.exchange}:${stockB.tradingsymbol} Sellers Bid: ${sellersBidForB}`);
       console.log(
-        `${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`,
+        `[Looking for Exit (Given: ${exitDiff})] LTP Difference: ${sellersBidForB - aLTP}`,
       );
-      console.log(
-        `${stockB.exchange}:${stockB.tradingsymbol} Sellers Bid: ${sellersBidForB}`,
-      );
-      console.log(`[Looking for Entry (Given: ${exitDiff})] LTP Difference: ${sellersBidForB - aLTP}`);
 
       if (checkExitCondition(sellersBidForB, aLTP)) {
         exitMarket(stockB, sellersBidForB, "BUY");
       }
-    })
+    });
   };
 
   // Checks Market Entry Condition
@@ -137,13 +132,11 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         }
       }
       console.log("Looking for entry...");
+      console.log(`${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`);
+      console.log(`${stockB.exchange}:${stockB.tradingsymbol} Buyers Bid: ${buyersBidForB}`);
       console.log(
-        `${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}`,
+        `[Looking for Entry (Given: ${EntryDiff})] LTP Difference: ${buyersBidForB - aLTP}`,
       );
-      console.log(
-        `${stockB.exchange}:${stockB.tradingsymbol} Buyers Bid: ${buyersBidForB}`,
-      );
-      console.log(`[Looking for Entry (Given: ${ltpDiff})] LTP Difference: ${buyersBidForB - aLTP}`);
 
       if (checkEntryCondition(buyersBidForB, aLTP)) {
         enterMarket(stockB, buyersBidForB, "SELL");
