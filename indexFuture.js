@@ -1,14 +1,13 @@
 const KiteConnect = require("kiteconnect").KiteConnect;
 const KiteTicker = require("kiteconnect").KiteTicker;
 const express = require("express");
-const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
 app.use(express.json());
 
 const apiKey = process.env.API_KEY;
-const accessToken = process.env.API_KEY;
+const accessToken = process.env.ACCESS_TOKEN;
 
 const kc = new KiteConnect({
   api_key: apiKey,
@@ -27,7 +26,7 @@ app.post("/startTrading", ({ body }, res) => {
 });
 
 app.post("/unexecuted", ({ body }, res) => {
-  unexecutedLogic(body.stockToBuy, body.stockToSell, body.exitDiff, body.quantity);
+  unexecutedLogic(body.futureToBuy, body.futureToSell, body.quantity, body.exitDifference);
   res.send("Unexecuted started. Check console for further details");
 });
 
@@ -46,20 +45,22 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
 
   // Order function
   const order = (stock, transactionType, price) => {
-    // kc.placeOrder("regular", {
-    //   exchange: stock.exchange,
-    //   tradingsymbol: stock.tradingsymbol,
-    //   transaction_type: transactionType,
-    //   quantity,
-    //   product: "MIS",
-    //   order_type: "MARKET",
-    //   // price: price,
-    // }).catch((error) => {
-    //   console.log("Error while placing order", error);
-    // });
+    kc.placeOrder("regular", {
+      exchange: stock.exchange,
+      tradingsymbol: stock.tradingsymbol,
+      transaction_type: transactionType,
+      quantity,
+      product: "NRML",
+      order_type: "MARKET",
+      // price: price,
+    }).catch((error) => {
+      console.log("Error while placing order", error);
+    });
+    const timestamp = new Date();
     console.log(
       `Order placed for ${stock.exchange}:${stock.tradingsymbol}, Transaction: ${transactionType}, price: ${price}, quantity: ${quantity}`,
     );
+    console.log(`Time of order: ${timestamp.toUTCString()}`);
   };
 
   // Checks Market Exit Condition
@@ -84,19 +85,23 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
     ticks.forEach((t) => {
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
-        if (t.depth.buy) {
-          buyersBidForA = t.depth.buy[0].price;
-        }
-        if (t.depth.sell) {
-          sellersBidForA = t.depth.sell[0].price;
+        if (t.depth) {
+          if (t.depth.buy) {
+            buyersBidForA = t.depth.buy[0].price;
+          }
+          if (t.depth.sell) {
+            sellersBidForA = t.depth.sell[0].price;
+          }
         }
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
-        if (t.depth.buy) {
-          buyersBidForB = t.depth.buy[0].price;
-        }
-        if (t.depth.sell) {
-          sellersBidForB = t.depth.sell[0].price;
+        if (t.depth) {
+          if (t.depth.buy) {
+            buyersBidForB = t.depth.buy[0].price;
+          }
+          if (t.depth.sell) {
+            sellersBidForB = t.depth.sell[0].price;
+          }
         }
       }
 
@@ -146,14 +151,24 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
       //console.log(t);
       if (t.instrument_token === aInstrumentToken) {
         aLTP = t.last_price;
-        const { buy, sell } = t.depth;
-        buyersBidForA = buy[0].price;
-        sellersBidForA = sell[0].price;
+        if (t.depth) {
+          if (t.depth.buy) {
+            buyersBidForA = t.depth.buy[0].price;
+          }
+          if (t.depth.sell) {
+            sellersBidForA = t.depth.sell[0].price;
+          }
+        }
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
-        const { buy, sell } = t.depth;
-        buyersBidForB = buy[0].price;
-        sellersBidForB = sell[0].price;
+        if (t.depth) {
+          if (t.depth.buy) {
+            buyersBidForB = t.depth.buy[0].price;
+          }
+          if (t.depth.sell) {
+            sellersBidForB = t.depth.sell[0].price;
+          }
+        }
       }
       console.log(`Looking for entry...
       ${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}, Buyers Bid: ${buyersBidForA}, Sellers Bid: ${sellersBidForA}
@@ -230,7 +245,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
     });
 };
 
-const unexecutedLogic = (stockToBuy, stockToSell, exitDiff, quantity) => {
+const unexecutedLogic = (stockToBuy, stockToSell, quantity, exitDiff) => {
   let aInstrumentToken, bInstrumentToken;
   let stockA = {},
     stockB = {};
@@ -239,20 +254,22 @@ const unexecutedLogic = (stockToBuy, stockToSell, exitDiff, quantity) => {
 
   // Order function
   const order = (stock, transactionType, price) => {
-    // kc.placeOrder("regular", {
-    //   exchange: stock.exchange,
-    //   tradingsymbol: stock.tradingsymbol,
-    //   transaction_type: transactionType,
-    //   quantity,
-    //   product: "MIS",
-    //   order_type: "MARKET",
-    //   // price: price,
-    // }).catch((error) => {
-    //   console.log("Error while placing order", error);
-    // });
+    kc.placeOrder("regular", {
+      exchange: stock.exchange,
+      tradingsymbol: stock.tradingsymbol,
+      transaction_type: transactionType,
+      quantity,
+      product: "MIS",
+      order_type: "MARKET",
+      // price: price,
+    }).catch((error) => {
+      console.log("Error while placing order", error);
+    });
+    const timestamp = new Date();
     console.log(
       `Order placed for ${stock.exchange}:${stock.tradingsymbol}, Transaction: ${transactionType}, price: ${price}, quantity: ${quantity}`,
     );
+    console.log(`Time of order: ${timestamp.toUTCString()}`);
   };
 
   // Checks Market Exit Condition

@@ -49,6 +49,5 @@ app.use("/login", (req, res) => {
 const writeEnvFile = (contents) => {
   fs.writeFileSync(".env", contents, (err) => {
     if (err) console.log(err);
-    console.log(".env file updated.");
   });
 };
