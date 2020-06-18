@@ -21,12 +21,12 @@ app.use("/startLive", (req, res) => {
 });
 
 app.post("/startTrading", ({ body }, res) => {
-  useStrategy(body.stockA, body.stockB, body.quantity, body.entryDifference, body.exitDifference);
+  useStrategy(body.stockA, body.stockB, body.quantity, body.entry, body.exit);
   res.send("Trade started. Check console for further details");
 });
 
 app.post("/unexecuted", ({ body }, res) => {
-  unexecutedLogic(body.stockToBuy, body.stockToSell, body.quantity, body.exitDiff);
+  unexecutedLogic(body.stockToBuy, body.stockToSell, body.quantity, body.exit);
   res.send("Unexecuted started. Check console for further details");
 });
 
@@ -74,7 +74,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
     if (exitedMarket === false) {
       exitedMarket = true;
       order(stock, transactionType, price);
-      console.log("Exited Market");
+      console.log("Exit triggerred. Please return to the entry page.");
     }
   };
 
@@ -94,10 +94,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         }
       }
       console.log(`Looking for Exit...
-      ${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}
-      ${stockB.exchange}:${
-        stockB.tradingsymbol
-      } Buyers Bid: ${buyersBidForB}, Sellers Bid: ${sellersBidForB}
+      ${stockB.exchange}:${stockB.tradingsymbol} Buy: ${buyersBidForB}, Sell: ${sellersBidForB}
       Given: ${exitDiff}, Difference: ${sellersBidForB - aLTP}`);
 
       if (checkExitCondition(sellersBidForB, aLTP)) {
@@ -118,7 +115,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
     // TODO: Enter this into the ledger
     if (enteredMarket === false) {
       enteredMarket = true;
-      console.log("Entered market");
+      console.log("Market triggerred.");
       order(stock, transactionType, price);
     }
   };
@@ -140,10 +137,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         }
       }
       console.log(`Looking for entry...
-      ${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}
-      ${stockB.exchange}:${
-        stockB.tradingsymbol
-      } Buyers Bid: ${buyersBidForB}, Sellers Bid: ${sellersBidForB}
+      ${stockB.exchange}:${stockB.tradingsymbol} Buy: ${buyersBidForB}, Sell: ${sellersBidForB}
       Given: ${EntryDiff}, Difference: ${buyersBidForB - aLTP}`);
 
       if (checkEntryCondition(buyersBidForB, aLTP)) {
@@ -157,7 +151,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
     `${stockDos.exchange}:${stockDos.tradingsymbol}`,
   ])
     .then((result) => {
-      console.log("Got LTPs", result);
+      console.log("Input Data validated. Getting stock information.", result);
       aLTP = result[`${stockUno.exchange}:${stockUno.tradingsymbol}`].last_price;
       bLTP = result[`${stockDos.exchange}:${stockDos.tradingsymbol}`].last_price;
       aInstrumentToken = result[`${stockUno.exchange}:${stockUno.tradingsymbol}`].instrument_token;
@@ -191,11 +185,11 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
       });
 
       ticker.on("close", () => {
-        return "Trade completed succesfully.";
+        console.log("Program terminated.");
       });
     })
     .catch((error) => {
-      console.log("Error fetching LTP for the stocks: ", error);
+      console.log("Error in the input data. Please check.", error);
     });
 };
 
@@ -219,9 +213,11 @@ const unexecutedLogic = (stockUno, stockDos, quantity, exitDiff) => {
     }).catch((error) => {
       console.log("Error while placing order", error);
     });
+    const timestamp = new Date();
     console.log(
       `Order placed for ${stock.exchange}:${stock.tradingsymbol}, Transaction: ${transactionType}, price: ${price}, quantity: ${quantity}`,
     );
+    console.log(timestamp.toUTCString());
   };
 
   // Checks Market Exit Condition
@@ -236,7 +232,7 @@ const unexecutedLogic = (stockUno, stockDos, quantity, exitDiff) => {
     if (exitedMarket === false) {
       exitedMarket = true;
       order(stock, transactionType, price);
-      console.log("Exited Market");
+      console.log("Exit triggerred. Please return to the entry page.");
     }
   };
 
@@ -253,10 +249,7 @@ const unexecutedLogic = (stockUno, stockDos, quantity, exitDiff) => {
         }
       }
       console.log(`Looking for Exit...
-      ${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}
-      ${stockB.exchange}:${
-        stockB.tradingsymbol
-      } Buyers Bid: ${buyersBidForB}, Sellers Bid: ${sellersBidForB}
+      ${stockB.exchange}:${stockB.tradingsymbol} Buy: ${buyersBidForB}, Sell: ${sellersBidForB}
       Given: ${exitDiff}, Difference: ${sellersBidForB - aLTP}`);
 
       if (checkExitCondition(sellersBidForB, aLTP)) {
@@ -270,7 +263,7 @@ const unexecutedLogic = (stockUno, stockDos, quantity, exitDiff) => {
     `${stockDos.exchange}:${stockDos.tradingsymbol}`,
   ])
     .then((result) => {
-      console.log("Got LTPs", result);
+      console.log("Input Data validated. Getting stock information.", result);
       aInstrumentToken = result[`${stockUno.exchange}:${stockUno.tradingsymbol}`].instrument_token;
       bInstrumentToken = result[`${stockDos.exchange}:${stockDos.tradingsymbol}`].instrument_token;
       stockA = { ...stockUno };
@@ -300,10 +293,10 @@ const unexecutedLogic = (stockUno, stockDos, quantity, exitDiff) => {
       });
 
       ticker.on("close", () => {
-        return "Trade completed succesfully.";
+        console.log("Program terminated.");
       });
     })
     .catch((error) => {
-      console.log("Error fetching LTP for the stocks: ", error);
+      console.log("Error in the input data. Please check.", error);
     });
 };
