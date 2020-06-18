@@ -219,9 +219,11 @@ const unexecutedLogic = (stockUno, stockDos, quantity, exitDiff) => {
     }).catch((error) => {
       console.log("Error while placing order", error);
     });
+    const timestamp = new Date();
     console.log(
       `Order placed for ${stock.exchange}:${stock.tradingsymbol}, Transaction: ${transactionType}, price: ${price}, quantity: ${quantity}`,
     );
+    console.log(timestamp.toUTCString());
   };
 
   // Checks Market Exit Condition
