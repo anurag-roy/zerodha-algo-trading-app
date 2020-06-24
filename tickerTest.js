@@ -1,4 +1,4 @@
-require("dotenv").config()
+require("dotenv").config();
 const KiteTicker = require("kiteconnect").KiteTicker;
 
 const ticker = new KiteTicker({
