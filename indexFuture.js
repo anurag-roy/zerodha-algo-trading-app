@@ -38,7 +38,14 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
   let aLTP, bLTP, aInstrumentToken, bInstrumentToken;
   let stockA = {},
     stockB = {};
-  let buyersBidForA, sellersBidForA, buyersBidForB, sellersBidForB;
+  let buyersBidForA,
+    buyersQtyForA,
+    sellersBidForA,
+    sellersQtyForA,
+    buyersBidForB,
+    buyersQtyForB,
+    sellersBidForB,
+    sellersQtyForB;
   let enteredMarket = false,
     exitedMarket = false;
   let caseNumber = 0;
@@ -72,11 +79,13 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
 
   //Market Exit Order
   const exitMarket = (stock1, stock2, price1, price2) => {
-    if (exitedMarket === false) {
-      exitedMarket = true;
-      order(stock1, "BUY", price1);
-      order(stock2, "SELL", price2);
-      console.log("Exited Market");
+    if (quantity >= buyersQtyForA + sellersQtyForA && quantity >= sellersQtyForB + buyersQtyForB) {
+      if (exitedMarket === false) {
+        exitedMarket = true;
+        order(stock1, "BUY", price1);
+        order(stock2, "SELL", price2);
+        console.log("Exited Market");
+      }
     }
   };
 
@@ -88,9 +97,11 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         if (t.depth) {
           if (t.depth.buy) {
             buyersBidForA = t.depth.buy[0].price;
+            buyersQtyForA = t.depth.buy[0].quantity;
           }
           if (t.depth.sell) {
             sellersBidForA = t.depth.sell[0].price;
+            sellersQtyForA = t.depth.sell[0].quantity;
           }
         }
       } else if (t.instrument_token === bInstrumentToken) {
@@ -98,25 +109,31 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         if (t.depth) {
           if (t.depth.buy) {
             buyersBidForB = t.depth.buy[0].price;
+            buyersQtyForB = t.depth.buy[0].quantity;
           }
           if (t.depth.sell) {
             sellersBidForB = t.depth.sell[0].price;
+            sellersQtyForB = t.depth.sell[0].quantity;
           }
         }
       }
 
       if (caseNumber === 1) {
         console.log(`Looking for exit...[Entered Case 1]
-        ${stockA.exchange}:${stockA.tradingsymbol} Sellers Bid: ${sellersBidForA}
-        ${stockB.exchange}:${stockB.tradingsymbol} Buyers Bid: ${buyersBidForB}
+        ${stockA.exchange}:${
+          stockA.tradingsymbol
+        } Sellers Bid: ${sellersBidForA} (${sellersQtyForA})
+        ${stockB.exchange}:${stockB.tradingsymbol} Buyers Bid: ${buyersBidForB} (${buyersQtyForB})
         Given: ${exitDiff}, Difference: ${sellersBidForA - buyersBidForB}`);
         if (checkExitCondition(sellersBidForA, buyersBidForB)) {
           exitMarket(stockA, stockB, sellersBidForA, buyersBidForB);
         }
       } else if (caseNumber === 2) {
         console.log(`Looking for exit...[Entered Case 2]
-        ${stockB.exchange}:${stockB.tradingsymbol} Sellers Bid: ${sellersBidForB}
-        ${stockA.exchange}:${stockA.tradingsymbol} Buyers Bid: ${buyersBidForA}
+        ${stockB.exchange}:${
+          stockB.tradingsymbol
+        } Sellers Bid: ${sellersBidForB} (${sellersQtyForB})
+        ${stockA.exchange}:${stockA.tradingsymbol} Buyers Bid: ${buyersBidForA} (${buyersQtyForA})
         Given: ${exitDiff}, Difference: ${sellersBidForB - buyersBidForA}`);
         if (checkExitCondition(sellersBidForB, buyersBidForA)) {
           exitMarket(stockB, stockA, sellersBidForB, buyersBidForA);
@@ -136,12 +153,13 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
 
   // Market Entry Order
   const enterMarket = (stock1, stock2, price1, price2) => {
-    // TODO: Enter this into the ledger
-    if (enteredMarket === false) {
-      enteredMarket = true;
-      console.log("Entered market");
-      order(stock1, "SELL", price1);
-      order(stock2, "BUY", price2);
+    if (quantity >= buyersQtyForA + sellersQtyForA && quantity >= sellersQtyForB + buyersQtyForB) {
+      if (enteredMarket === false) {
+        enteredMarket = true;
+        console.log("Entered market");
+        order(stock1, "SELL", price1);
+        order(stock2, "BUY", price2);
+      }
     }
   };
 
@@ -154,9 +172,11 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         if (t.depth) {
           if (t.depth.buy) {
             buyersBidForA = t.depth.buy[0].price;
+            buyersQtyForA = t.depth.buy[0].quantity;
           }
           if (t.depth.sell) {
             sellersBidForA = t.depth.sell[0].price;
+            sellersQtyForA = t.depth.sell[0].price;
           }
         }
       } else if (t.instrument_token === bInstrumentToken) {
@@ -164,15 +184,17 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         if (t.depth) {
           if (t.depth.buy) {
             buyersBidForB = t.depth.buy[0].price;
+            buyersQtyForB = t.depth.buy[0].quantity;
           }
           if (t.depth.sell) {
             sellersBidForB = t.depth.sell[0].price;
+            sellersQtyForB = t.depth.sell[0].quantity;
           }
         }
       }
       console.log(`Looking for entry...
-      ${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}, Buyers Bid: ${buyersBidForA}, Sellers Bid: ${sellersBidForA}
-      ${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}, Buyers Bid: ${buyersBidForB}, Sellers Bid: ${sellersBidForB}`);
+      ${stockA.exchange}:${stockA.tradingsymbol} LTP: ${aLTP}, Buyers Bid: ${buyersBidForA} (${buyersQtyForA}), Sellers Bid: ${sellersBidForA} (${sellersQtyForA})
+      ${stockB.exchange}:${stockB.tradingsymbol} LTP: ${bLTP}, Buyers Bid: ${buyersBidForB} (${buyersQtyForB}), Sellers Bid: ${sellersBidForB} (${sellersQtyForB})`);
       if (aLTP >= bLTP) {
         console.log(`Given: ${entryDiff}, Difference: ${buyersBidForA - sellersBidForB}`);
       } else if (bLTP > aLTP) {
