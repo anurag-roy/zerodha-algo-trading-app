@@ -52,17 +52,17 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
 
   // Order function
   const order = (stock, transactionType, price) => {
-    kc.placeOrder("regular", {
-      exchange: stock.exchange,
-      tradingsymbol: stock.tradingsymbol,
-      transaction_type: transactionType,
-      quantity,
-      product: "NRML",
-      order_type: "MARKET",
-      // price: price,
-    }).catch((error) => {
-      console.log("Error while placing order", error);
-    });
+    // kc.placeOrder("regular", {
+    //   exchange: stock.exchange,
+    //   tradingsymbol: stock.tradingsymbol,
+    //   transaction_type: transactionType,
+    //   quantity,
+    //   product: "NRML",
+    //   order_type: "MARKET",
+    //   // price: price,
+    // }).catch((error) => {
+    //   console.log("Error while placing order", error);
+    // });
     const timestamp = new Date();
     console.log(
       `Order placed for ${stock.exchange}:${stock.tradingsymbol}, Transaction: ${transactionType}, price: ${price}, quantity: ${quantity}`,
@@ -212,7 +212,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
           }
           if (t.depth.sell) {
             sellersBidForA = t.depth.sell[0].price;
-            sellersQtyForA = t.depth.sell[0].price;
+            sellersQtyForA = t.depth.sell[0].quantity;
           }
         }
       } else if (t.instrument_token === bInstrumentToken) {
@@ -325,22 +325,22 @@ const unexecutedLogic = (stockToBuy, stockToSell, quantity, exitDiff) => {
   let aInstrumentToken, bInstrumentToken;
   let stockA = {},
     stockB = {};
-  let sellersBidForA, buyersBidForB;
+  let sellersBidForA, buyersBidForB, buyersQtyForA, sellersQtyForA, buyersQtyForB, sellersQtyForB;
   let exitedMarket = false;
 
   // Order function
   const order = (stock, transactionType, price) => {
-    kc.placeOrder("regular", {
-      exchange: stock.exchange,
-      tradingsymbol: stock.tradingsymbol,
-      transaction_type: transactionType,
-      quantity,
-      product: "MIS",
-      order_type: "MARKET",
-      // price: price,
-    }).catch((error) => {
-      console.log("Error while placing order", error);
-    });
+    // kc.placeOrder("regular", {
+    //   exchange: stock.exchange,
+    //   tradingsymbol: stock.tradingsymbol,
+    //   transaction_type: transactionType,
+    //   quantity,
+    //   product: "MIS",
+    //   order_type: "MARKET",
+    //   // price: price,
+    // }).catch((error) => {
+    //   console.log("Error while placing order", error);
+    // });
     const timestamp = new Date();
     console.log(
       `Order placed for ${stock.exchange}:${stock.tradingsymbol}, Transaction: ${transactionType}, price: ${price}, quantity: ${quantity}`,
@@ -356,12 +356,23 @@ const unexecutedLogic = (stockToBuy, stockToSell, quantity, exitDiff) => {
   };
 
   //Market Exit Order
-  const exitMarket = (stock1, stock2, price1, price2) => {
-    if (exitedMarket === false) {
-      exitedMarket = true;
-      order(stock1, "BUY", price1);
-      order(stock2, "SELL", price2);
-      console.log("Exited Market");
+  const exitMarket = (
+    stock1,
+    stock2,
+    price1,
+    price2,
+    sellersQtyFor1,
+    buyersQtyFor1,
+    buyersQtyFor2,
+    sellersQtyFor2,
+  ) => {
+    if (sellersQtyFor1 >= quantity + buyersQtyFor1 && buyersQtyFor2 >= quantity + sellersQtyFor2) {
+      if (exitedMarket === false) {
+        exitedMarket = true;
+        order(stock1, "BUY", price1);
+        order(stock2, "SELL", price2);
+        console.log("Exited Market");
+      }
     }
   };
 
@@ -372,22 +383,41 @@ const unexecutedLogic = (stockToBuy, stockToSell, quantity, exitDiff) => {
         if (t.depth) {
           if (t.depth.sell) {
             sellersBidForA = t.depth.sell[0].price;
+            sellersQtyForA = t.depth.sell[0].quantity;
+          }
+          if (t.depth.buy) {
+            buyersQtyForA = t.depth.buy[0].quantity;
           }
         }
       } else if (t.instrument_token === bInstrumentToken) {
         if (t.depth) {
           if (t.depth.buy) {
             buyersBidForB = t.depth.buy[0].price;
+            buyersQtyForB = t.depth.buy[0].quantity;
+          }
+          if (t.depth.sell) {
+            sellersQtyForB = t.depth.sell[0].quantity;
           }
         }
       }
 
       console.log(`Looking for exit...
-        ${stockA.exchange}:${stockA.tradingsymbol} Sellers Bid: ${sellersBidForA}
-        ${stockB.exchange}:${stockB.tradingsymbol} Buyers Bid: ${buyersBidForB}
+        ${stockA.exchange}:${
+        stockA.tradingsymbol
+      } Sellers Bid: ${sellersBidForA} (${sellersQtyForA})
+        ${stockB.exchange}:${stockB.tradingsymbol} Buyers Bid: ${buyersBidForB} (${buyersQtyForB})
         Given: ${exitDiff}, Difference: ${sellersBidForA - buyersBidForB}`);
       if (checkExitCondition(sellersBidForA, buyersBidForB)) {
-        exitMarket(stockA, stockB, sellersBidForA, buyersBidForB);
+        exitMarket(
+          stockA,
+          stockB,
+          sellersBidForA,
+          buyersBidForB,
+          sellersQtyForA,
+          buyersQtyForA,
+          buyersQtyForB,
+          sellersQtyForB,
+        );
       }
     });
   };
