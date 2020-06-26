@@ -78,8 +78,17 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
   };
 
   //Market Exit Order
-  const exitMarket = (stock1, stock2, price1, price2) => {
-    if (quantity >= buyersQtyForA + sellersQtyForA && quantity >= sellersQtyForB + buyersQtyForB) {
+  const exitMarket = (
+    stock1,
+    stock2,
+    price1,
+    price2,
+    sellersQtyFor1,
+    buyersQtyFor1,
+    buyersQtyFor2,
+    sellersQtyFor2,
+  ) => {
+    if (sellersQtyFor1 >= quantity + buyersQtyFor1 && buyersQtyFor2 >= quantity + sellersQtyFor2) {
       if (exitedMarket === false) {
         exitedMarket = true;
         order(stock1, "BUY", price1);
@@ -126,7 +135,16 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         ${stockB.exchange}:${stockB.tradingsymbol} Buyers Bid: ${buyersBidForB} (${buyersQtyForB})
         Given: ${exitDiff}, Difference: ${sellersBidForA - buyersBidForB}`);
         if (checkExitCondition(sellersBidForA, buyersBidForB)) {
-          exitMarket(stockA, stockB, sellersBidForA, buyersBidForB);
+          exitMarket(
+            stockA,
+            stockB,
+            sellersBidForA,
+            buyersBidForB,
+            sellersQtyForA,
+            buyersQtyForA,
+            buyersQtyForB,
+            sellersQtyForB,
+          );
         }
       } else if (caseNumber === 2) {
         console.log(`Looking for exit...[Entered Case 2]
@@ -136,7 +154,16 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         ${stockA.exchange}:${stockA.tradingsymbol} Buyers Bid: ${buyersBidForA} (${buyersQtyForA})
         Given: ${exitDiff}, Difference: ${sellersBidForB - buyersBidForA}`);
         if (checkExitCondition(sellersBidForB, buyersBidForA)) {
-          exitMarket(stockB, stockA, sellersBidForB, buyersBidForA);
+          exitMarket(
+            stockB,
+            stockA,
+            sellersBidForB,
+            buyersBidForA,
+            sellersQtyForB,
+            buyersQtyForB,
+            buyersQtyForA,
+            sellersQtyForA,
+          );
         }
       }
     });
@@ -152,8 +179,17 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
   };
 
   // Market Entry Order
-  const enterMarket = (stock1, stock2, price1, price2) => {
-    if (quantity >= buyersQtyForA + sellersQtyForA && quantity >= sellersQtyForB + buyersQtyForB) {
+  const enterMarket = (
+    stock1,
+    stock2,
+    price1,
+    price2,
+    buyersQtyFor1,
+    sellersQtyFor1,
+    sellersQtyFor2,
+    buyersQtyFor2,
+  ) => {
+    if (buyersQtyFor1 >= quantity + sellersQtyFor1 && sellersQtyFor2 >= quantity + buyersQtyFor2) {
       if (enteredMarket === false) {
         enteredMarket = true;
         console.log("Entered market");
@@ -212,10 +248,28 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
 
       if (condition === 1) {
         caseNumber = 1;
-        enterMarket(stockA, stockB, buyersBidForA, sellersBidForB);
+        enterMarket(
+          stockA,
+          stockB,
+          buyersBidForA,
+          sellersBidForB,
+          buyersQtyForA,
+          sellersQtyForA,
+          sellersQtyForB,
+          buyersQtyForB,
+        );
       } else if (condition === 2) {
         caseNumber = 2;
-        enterMarket(stockB, stockA, buyersBidForB, sellersBidForA);
+        enterMarket(
+          stockB,
+          stockA,
+          buyersBidForB,
+          sellersBidForA,
+          buyersQtyForB,
+          sellersQtyForB,
+          sellersQtyForA,
+          buyersQtyForA,
+        );
       }
     });
   };
@@ -259,7 +313,7 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
       });
 
       ticker.on("close", () => {
-        return "Trade completed succesfully.";
+        return "Trade completed successfully.";
       });
     })
     .catch((error) => {
@@ -377,7 +431,7 @@ const unexecutedLogic = (stockToBuy, stockToSell, quantity, exitDiff) => {
       });
 
       ticker.on("close", () => {
-        return "Unexecuted Trade completed succesfully.";
+        return "Unexecuted Trade completed successfully.";
       });
     })
     .catch((error) => {
