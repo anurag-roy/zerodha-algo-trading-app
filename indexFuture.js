@@ -105,24 +105,24 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         aLTP = t.last_price;
         if (t.depth) {
           if (t.depth.buy) {
-            buyersBidForA = t.depth.buy[0].price;
-            buyersQtyForA = t.depth.buy[0].quantity;
+            buyersBidForA = t.depth.buy[1].price;
+            buyersQtyForA = t.depth.buy[1].quantity;
           }
           if (t.depth.sell) {
-            sellersBidForA = t.depth.sell[0].price;
-            sellersQtyForA = t.depth.sell[0].quantity;
+            sellersBidForA = t.depth.sell[1].price;
+            sellersQtyForA = t.depth.sell[1].quantity;
           }
         }
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
         if (t.depth) {
           if (t.depth.buy) {
-            buyersBidForB = t.depth.buy[0].price;
-            buyersQtyForB = t.depth.buy[0].quantity;
+            buyersBidForB = t.depth.buy[1].price;
+            buyersQtyForB = t.depth.buy[1].quantity;
           }
           if (t.depth.sell) {
-            sellersBidForB = t.depth.sell[0].price;
-            sellersQtyForB = t.depth.sell[0].quantity;
+            sellersBidForB = t.depth.sell[1].price;
+            sellersQtyForB = t.depth.sell[1].quantity;
           }
         }
       }
@@ -207,24 +207,24 @@ const useStrategy = (stockUno, stockDos, quantity, entryDiff, exitDiff) => {
         aLTP = t.last_price;
         if (t.depth) {
           if (t.depth.buy) {
-            buyersBidForA = t.depth.buy[0].price;
-            buyersQtyForA = t.depth.buy[0].quantity;
+            buyersBidForA = t.depth.buy[1].price;
+            buyersQtyForA = t.depth.buy[1].quantity;
           }
           if (t.depth.sell) {
-            sellersBidForA = t.depth.sell[0].price;
-            sellersQtyForA = t.depth.sell[0].quantity;
+            sellersBidForA = t.depth.sell[1].price;
+            sellersQtyForA = t.depth.sell[1].quantity;
           }
         }
       } else if (t.instrument_token === bInstrumentToken) {
         bLTP = t.last_price;
         if (t.depth) {
           if (t.depth.buy) {
-            buyersBidForB = t.depth.buy[0].price;
-            buyersQtyForB = t.depth.buy[0].quantity;
+            buyersBidForB = t.depth.buy[1].price;
+            buyersQtyForB = t.depth.buy[1].quantity;
           }
           if (t.depth.sell) {
-            sellersBidForB = t.depth.sell[0].price;
-            sellersQtyForB = t.depth.sell[0].quantity;
+            sellersBidForB = t.depth.sell[1].price;
+            sellersQtyForB = t.depth.sell[1].quantity;
           }
         }
       }
@@ -382,21 +382,21 @@ const unexecutedLogic = (stockToBuy, stockToSell, quantity, exitDiff) => {
       if (t.instrument_token === aInstrumentToken) {
         if (t.depth) {
           if (t.depth.sell) {
-            sellersBidForA = t.depth.sell[0].price;
-            sellersQtyForA = t.depth.sell[0].quantity;
+            sellersBidForA = t.depth.sell[1].price;
+            sellersQtyForA = t.depth.sell[1].quantity;
           }
           if (t.depth.buy) {
-            buyersQtyForA = t.depth.buy[0].quantity;
+            buyersQtyForA = t.depth.buy[1].quantity;
           }
         }
       } else if (t.instrument_token === bInstrumentToken) {
         if (t.depth) {
           if (t.depth.buy) {
-            buyersBidForB = t.depth.buy[0].price;
-            buyersQtyForB = t.depth.buy[0].quantity;
+            buyersBidForB = t.depth.buy[1].price;
+            buyersQtyForB = t.depth.buy[1].quantity;
           }
           if (t.depth.sell) {
-            sellersQtyForB = t.depth.sell[0].quantity;
+            sellersQtyForB = t.depth.sell[1].quantity;
           }
         }
       }
