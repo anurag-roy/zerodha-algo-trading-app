@@ -31,7 +31,7 @@ app.use("/login", async (req, res) => {
       ACCESS_TOKEN="${accessToken}"`;
   writeEnvFile(contents);
 
-  const instruments = kc.getInstruments(["NSE", "BSE", "NFO", "MCX"]);
+  const instruments = await kc.getInstruments(["NSE", "BSE", "NFO", "MCX"]);
   writeInstruments(instruments);
 
   res.send("Login flow successful!");
@@ -45,7 +45,7 @@ const writeEnvFile = (contents) => {
 };
 
 const writeInstruments = (instruments) => {
-  fs.writeFileSync("instruments.json", instruments, (err) => {
+  fs.writeFileSync("instruments.json", JSON.stringify(instruments), (err) => {
     if (err) console.log("Error while writing instruments", error);
   });
 };
