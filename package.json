@@ -8,6 +8,8 @@
     "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "future": "node indexFuture.js",
+    "futureWithoutQ": "node indexFutureWithoutQ.js",
+    "strangle": "node strangle.js",
     "cash": "node indexCash.js"
   },
   "repository": {
